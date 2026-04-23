@@ -278,7 +278,7 @@ function parseWorkbook(buffer) {
         luaId,
         trackingRaw: tracking.trackingRaw,
         trackingId: tracking.trackingId,
-        trackingUrl: readLink(sheetRowIndex + 1, columnMap.trackingRaw) || buildTrackingUrl(tracking.trackingId),
+        trackingUrl: readLink(sheetRowIndex, columnMap.trackingRaw) || buildTrackingUrl(tracking.trackingId),
         tipo: tipoCell || tracking.tipo || "LUA",
         linea,
         macchina: String(readCell(row, columnMap.macchina) || "").trim(),
