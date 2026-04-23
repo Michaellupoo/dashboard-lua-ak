@@ -139,7 +139,26 @@ function normalizeHeader(value) {
 function findColumnIndex(headers, aliases) {
   const normalizedHeaders = headers.map(normalizeHeader);
   const normalizedAliases = aliases.map(normalizeHeader);
-  return normalizedHeaders.findIndex((header) => normalizedAliases.includes(header));
+
+  const exactIndex = normalizedHeaders.findIndex((header) => normalizedAliases.includes(header));
+  if (exactIndex >= 0) return exactIndex;
+
+  const containsIndex = normalizedHeaders.findIndex((header) =>
+    normalizedAliases.some((alias) => header.includes(alias) || alias.includes(header))
+  );
+  return containsIndex;
+}
+
+function inferStatusCodeFromRow(row) {
+  for (const cell of row) {
+    const raw = String(cell || "").trim();
+    if (!raw) continue;
+    const num = Number(raw);
+    if ([1, 2, 3, 4].includes(num)) return num;
+    const normalized = normalizeStatusCode(raw);
+    if (normalized !== 1 || raw.toLowerCase().includes("aperto")) return normalized;
+  }
+  return 1;
 }
 
 function ensureLuaId(value, rowNumber) {
@@ -220,6 +239,16 @@ function parseWorkbook(buffer) {
     Object.entries(HEADER_ALIASES).map(([key, aliases]) => [key, findColumnIndex(headers, aliases)])
   );
 
+  if (columnMap.stato < 0) {
+    columnMap.stato = headers.findIndex((header) => normalizeHeader(header).includes("stato"));
+  }
+  if (columnMap.luaId < 0) {
+    columnMap.luaId = headers.findIndex((header) => normalizeHeader(header).includes("id"));
+  }
+  if (columnMap.descrizione < 0) {
+    columnMap.descrizione = headers.findIndex((header) => normalizeHeader(header).includes("descrizione"));
+  }
+
   const readCell = (row, columnIndex) => (columnIndex >= 0 ? row[columnIndex] : "");
   const readLink = (sheetRowIndex, columnIndex) => {
     if (columnIndex < 0) return null;
@@ -240,7 +269,8 @@ function parseWorkbook(buffer) {
       if (!["AK01", "AK02", "AK03"].some((ak) => linea.includes(ak))) return null;
 
       const tracking = extractTracking(readCell(row, columnMap.trackingRaw));
-      const statoCodice = normalizeStatusCode(readCell(row, columnMap.stato));
+      const statoValue = readCell(row, columnMap.stato);
+      const statoCodice = columnMap.stato >= 0 ? normalizeStatusCode(statoValue) : inferStatusCodeFromRow(row);
       const tipoCell = String(readCell(row, columnMap.tipo) || "").trim();
       const competenza = String(readCell(row, columnMap.competenza) || "").trim();
 
